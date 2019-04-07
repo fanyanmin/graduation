@@ -1,6 +1,7 @@
 const Router = require('koa-router');
 const router = new Router();
 const passport = require('koa-passport');
+const md5 = require('../libs/md5');
 
 
 
@@ -21,6 +22,37 @@ router.get('/all', passport.authenticate('jwt', { session: false }), async ctx =
             );
             ctx.status = 200;
             ctx.body = { msg: 'success', teams: findTeam };
+        } else {
+            ctx.status = 400;
+            ctx.body = { msg: '未登录或用户没有权限' };
+        }
+    } catch (e) {
+        console.log(e);
+        ctx.status = 404;
+        ctx.body = { msg: 'not found.' };
+    }
+});
+
+/**
+ *  @GET '/team?team1=?team2=?'
+ *  @获取个人社团数据接口，接口是私密的
+ *  query title
+ */
+router.get('/', passport.authenticate('jwt', { session: false }), async ctx => {
+    try {
+        const user = await ctx.db.query(
+            "select * from user where id = ?",
+            [ctx.state.user.id]
+        );
+        if (user.length > 0) {
+            const findTeam = await ctx.db.query(
+                "select * from team where title=? or title=?",
+                [ctx.query.team1,ctx.query.team2]
+            );
+            if(findTeam.length>0){
+                ctx.status = 200;
+                ctx.body = { msg: 'success', teams: findTeam };
+            }
         } else {
             ctx.status = 400;
             ctx.body = { msg: '未登录或用户没有权限' };
@@ -119,13 +151,6 @@ router.post('/set', passport.authenticate('jwt', { session: false }), async ctx 
         if (user.length > 0) {
             //接收表单数据
             const data = ctx.request.body;
-            // 验证数据
-            const { errors, isValid } = await Valid.RegisterValid(data);
-            if (!isValid) {
-                ctx.status = 201;
-                ctx.body = errors;
-                return;
-            }
             // 验证用户是否存在
             const exsitUser = await ctx.db.query(
                 "select * from user WHERE phone=?",
@@ -160,6 +185,7 @@ router.post('/set', passport.authenticate('jwt', { session: false }), async ctx 
                         ctx.body = { msg: "添加社长成功" };
                     }
                 } catch (e) {
+                    console.log(e);
                     ctx.status = 500;
                     ctx.body = { msg: "崩了" };
                 }

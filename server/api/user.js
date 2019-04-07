@@ -6,6 +6,36 @@ const passport = require('koa-passport');
 const md5 = require('../libs/md5');
 const config = require('../config');
 
+
+/**
+ *  @GET '/user?id=?'
+ *  @获取个人信息接口，接口是私密的
+ * 
+ */
+router.get('/', passport.authenticate('jwt', { session: false }), async ctx => {
+    try {
+        const user = await ctx.db.query(
+            "select * from user where id = ?",
+            [ctx.state.user.id]
+        );
+        if (user.length > 0) {
+
+            ctx.status = 200;
+            ctx.body = { msg: 'success', user: user };
+
+        } else {
+            ctx.status = 400;
+            ctx.body = { msg: '未登录或用户不存在' };
+        }
+    } catch (e) {
+        console.log(e);
+        ctx.status = 404;
+        ctx.body = { msg: 'not found.' };
+    }
+});
+
+
+
 /**
  *  @POST '/user/login'
  *  @登录接口，接口是公开的
@@ -15,6 +45,7 @@ router.post('/login', async ctx => {
     const data = ctx.request.body;
     // 数据验证
     const { errors, isValid } = await Valid.loginValid(data);
+
     if (!isValid) {
         ctx.status = 201;
         ctx.body = errors;
@@ -79,9 +110,15 @@ router.post('/add', passport.authenticate('jwt', { session: false }), async ctx 
             );
             if (exsitUser.length > 0) {
                 //判断该成员是否加入第二个社团
-                console.log(exsitUser);
-                ctx.status = 201;
-                ctx.body = { msg: '此账号已存在，请勿重复添加' };
+                // console.log(exsitUser);
+                const updateUser = await ctx.db.query(
+                    "update user set join2=?",
+                    [data.join]
+                );
+                if (updateUser.affectedRows > 0) {
+                    ctx.status = 200;
+                    ctx.body = { msg: "添加成员成功" };
+                }
             } else {
                 // 添加用户首次信息
                 const newUser = [
@@ -90,9 +127,9 @@ router.post('/add', passport.authenticate('jwt', { session: false }), async ctx 
                     data.sex,
                     md5('000000'),
                     data.college,
-                    data.class,
+                    data.temp_class,
                     data.position,
-                    data.join1
+                    data.join
                 ];
                 //添加到数据库
                 try {
@@ -136,8 +173,14 @@ router.get('/all', passport.authenticate('jwt', { session: false }), async ctx =
                 "select * from user where join1 = ? or join2 = ?",
                 [ctx.query.team, ctx.query.team]
             );
-            ctx.status = 200;
-            ctx.body = { msg: 'success', users: findUser };
+            if (findUser.length > 0) {
+                ctx.status = 200;
+                ctx.body = { msg: 'success', users: findUser };
+            } else {
+                ctx.status = 200;
+                ctx.body = { msg: 'none', users: findUser };
+            }
+
         } else {
             ctx.status = 400;
             ctx.body = { msg: '未登录或用户没有权限' };
@@ -148,6 +191,11 @@ router.get('/all', passport.authenticate('jwt', { session: false }), async ctx =
         ctx.body = { msg: 'not found.' };
     }
 });
+
+
+
+
+
 
 /**
  *  @GET '/user/delete?id=?'
@@ -186,7 +234,7 @@ router.get('/delete', passport.authenticate('jwt', { session: false }), async ct
 
 /**
  *  @GET '/user/set'
- *  @会长设置成员权限
+ *  @会长设置成员职位
  *  param id
  *  @接口是私密的
  */
@@ -198,10 +246,11 @@ router.get('/set', passport.authenticate('jwt', { session: false }), async ctx =
         );
         if (user.length > 0) {
             const set_id = ctx.query.id;
+            const position = ctx.query.position;
             // 设置操作
             const delUser = await ctx.db.query(
-                "update user set role=1 where id = ?",
-                [set_id]
+                "update user set position=? where id = ?",
+                [position,set_id]
             );
             if (delUser.affectedRows > 0) {
                 ctx.state = 200;
@@ -238,10 +287,10 @@ router.get('/edit', passport.authenticate('jwt', { session: false }), async ctx 
                 "select * from user where id = ?",
                 [edit_id]
             );
-            if(findUser){
+            if (findUser) {
                 ctx.status = 200;
                 ctx.body = findUser;
-            }else{
+            } else {
                 ctx.status = 500;
                 ctx.body = { msg: "你要查看的商品不存在或已被删除" };
             }

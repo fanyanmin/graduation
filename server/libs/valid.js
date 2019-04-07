@@ -17,7 +17,7 @@ module.exports = {
         data.phone = !isEmpty(data.phone)?data.phone:'';
 
         if(!Validator.isMobilePhone(data.phone)){
-            errors.phone = '请输入正确的手机号';
+            errors.msg = '请输入正确的手机号';
         }
 
         return{
@@ -34,7 +34,7 @@ module.exports = {
         data.name = !isEmpty(data.name)?data.name:'';
 
         if(!Validator.isMobilePhone(data.phone)){
-            errors.phone = '手机号格式错误！';
+            errors.msg = '手机号格式错误！';
         }
 
         if(!Validator.isLength(data.name,{max:20})){

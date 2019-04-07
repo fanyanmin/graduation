@@ -6,13 +6,13 @@ const passport = require('koa-passport');
 
 /**
  *  @GET '/activity/all'
- *  @获取本社团所有成员数据接口，接口是私密的
- *  query team
+ *  @获取所有活动数据接口，接口是私密的
+ * 
  */
 router.get('/all', passport.authenticate('jwt', { session: false }), async ctx => {
     try {
         const user = await ctx.db.query(
-            "select * from user where id = ? and role = 1",
+            "select * from user where id = ? and role = 2",
             [ctx.state.user.id]
         );
         if (user.length > 0) {
@@ -32,9 +32,74 @@ router.get('/all', passport.authenticate('jwt', { session: false }), async ctx =
     }
 });
 
+
+/**
+ *  @GET '/activity/id=?'
+ *  @获取本社团所有活动，接口是私密的
+ *  query team
+ */
+router.get('/', passport.authenticate('jwt', { session: false }), async ctx => {
+    try {
+        const id = ctx.query.id;
+        const user = await ctx.db.query(
+            "select * from user where id = ? and role = 1",
+            [ctx.state.user.id]
+        );
+        if (user.length > 0) {
+            const findActivity = await ctx.db.query(
+                "select * from activity where owner_id=?",
+                [id]
+            );
+            ctx.status = 200;
+            ctx.body = { msg: 'success', activity: findActivity };
+        } else {
+            ctx.status = 400;
+            ctx.body = { msg: '未登录或用户没有权限' };
+        }
+    } catch (e) {
+        console.log(e);
+        ctx.status = 404;
+        ctx.body = { msg: 'not found.' };
+    }
+});
+
+
+/**
+ *  @GET '/activity/member?team1=?&team2=?'
+ *  @获取本人参与的活动，接口是私密的
+ *  query team1 team2
+ */
+router.get('/member', passport.authenticate('jwt', { session: false }), async ctx => {
+    try {
+        const team1 = ctx.query.team1;
+        const team2 = ctx.query.team2;
+        const user = await ctx.db.query(
+            "select * from user where id = ?",
+            [ctx.state.user.id]
+        );
+        if (user.length > 0) {
+            const findActivity = await ctx.db.query(
+                "select * from activity where team=? or team=?",
+                [team1,team2]
+            );
+            ctx.status = 200;
+            ctx.body = { msg: 'success', activity: findActivity };
+        } else {
+            ctx.status = 400;
+            ctx.body = { msg: '未登录或用户没有权限' };
+        }
+    } catch (e) {
+        console.log(e);
+        ctx.status = 404;
+        ctx.body = { msg: 'not found.' };
+    }
+});
+
+
+
 /**
  *  @POST '/activity/add'
- *  @添加商品接口，接口是私密的，需要token验证
+ *  @添加活动，接口是私密的，需要token验证
  */
 router.post('/add', passport.authenticate('jwt', { session: false }), async ctx => {
     try {
@@ -53,12 +118,13 @@ router.post('/add', passport.authenticate('jwt', { session: false }), async ctx 
                 data.date2, //活动结束时间
                 data.description,   //活动描述
                 data.place, //活动地点
-                data.belong,     //活动所属社团
-                data.owner      //社长
+                data.team,     //活动所属社团
+                data.owner,      //社长
+                ctx.state.user.id
             ];
             // 存
             const saveActivity =  await ctx.db.query(
-                "insert into activity(title,date1,date2,description,place,belong,owner) values(?,?,?,?,?,?,?)",
+                "insert into activity(title,date1,date2,description,place,team,owner,owner_id) values(?,?,?,?,?,?,?,?)",
                 newActivity
             );
             if(saveActivity.affectedRows > 0){
@@ -107,6 +173,37 @@ router.get('/delete', passport.authenticate('jwt', { session: false }), async ct
         console.log(e);
         ctx.status = 404;
         ctx.body = { msg: '崩了' };
+    }
+});
+
+/**
+ *  @GET '/activity/set?id=?&state=?'
+ *  @老师审核接口，私密
+ * 
+ */
+router.get('/set', passport.authenticate('jwt', { session: false }), async ctx => {
+    try {
+        const user = await ctx.db.query(
+            "select * from user where id = ? and role = 2",
+            [ctx.state.user.id]
+        );
+        if (user.length > 0) {
+            const updateActivity = await ctx.db.query(
+                "update activity set status=? where id=?",
+                [ctx.query.state,ctx.query.id]
+            );
+            if(updateActivity.affectedRows>0){
+                ctx.status = 200;
+                ctx.body = { msg: '处理成功！' };
+            }
+        } else {
+            ctx.status = 400;
+            ctx.body = { msg: '未登录或用户没有权限' };
+        }
+    } catch (e) {
+        console.log(e);
+        ctx.status = 404;
+        ctx.body = { msg: 'not found.' };
     }
 });
 
