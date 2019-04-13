@@ -54,8 +54,8 @@ router.post('/login', async ctx => {
     // 登陆信息校验
     const find = await ctx.db.query(
         //sql查询
-        "select * from user where phone=?",
-        [data.phone]
+        "select * from user where id=?",
+        [data.id]
     );
     if (find.length < 1) {
         ctx.status = 201;
@@ -98,6 +98,7 @@ router.post('/add', passport.authenticate('jwt', { session: false }), async ctx 
             const data = ctx.request.body;
             // 验证数据
             const { errors, isValid } = await Valid.RegisterValid(data);
+
             if (!isValid) {
                 ctx.status = 201;
                 ctx.body = errors;
@@ -105,8 +106,8 @@ router.post('/add', passport.authenticate('jwt', { session: false }), async ctx 
             }
             // 验证用户是否存在
             const exsitUser = await ctx.db.query(
-                "select * from user WHERE phone=?",
-                [data.phone]
+                "select * from user WHERE id=?",
+                [data.id]
             );
             if (exsitUser.length > 0) {
                 //判断该成员是否加入第二个社团
@@ -122,6 +123,7 @@ router.post('/add', passport.authenticate('jwt', { session: false }), async ctx 
             } else {
                 // 添加用户首次信息
                 const newUser = [
+                    data.id,
                     data.name,
                     data.phone,
                     data.sex,
@@ -134,7 +136,7 @@ router.post('/add', passport.authenticate('jwt', { session: false }), async ctx 
                 //添加到数据库
                 try {
                     const savaUser = await ctx.db.query(
-                        "insert into user(name,phone,sex,password,college,class,position,join1) values(?,?,?,?,?,?,?,?)",
+                        "insert into user(id,name,phone,sex,password,college,class,position,join1) values(?,?,?,?,?,?,?,?,?)",
                         newUser
                     );
                     if (savaUser.affectedRows > 0) {
@@ -250,7 +252,7 @@ router.get('/set', passport.authenticate('jwt', { session: false }), async ctx =
             // 设置操作
             const delUser = await ctx.db.query(
                 "update user set position=? where id = ?",
-                [position,set_id]
+                [position, set_id]
             );
             if (delUser.affectedRows > 0) {
                 ctx.state = 200;
@@ -282,7 +284,7 @@ router.get('/edit', passport.authenticate('jwt', { session: false }), async ctx 
         );
         if (user.length > 0) {
             const edit_id = ctx.query.id;
-            // 找到要修改的blog并将旧的内容返回到前台
+            // 找到要修改的信息并将旧的内容返回到前台
             const findUser = await ctx.db.query(
                 "select * from user where id = ?",
                 [edit_id]
@@ -292,7 +294,7 @@ router.get('/edit', passport.authenticate('jwt', { session: false }), async ctx 
                 ctx.body = findUser;
             } else {
                 ctx.status = 500;
-                ctx.body = { msg: "你要查看的商品不存在或已被删除" };
+                ctx.body = { msg: "你要查看的用户不存在或已被删除" };
             }
         } else {
             ctx.status = 400;
@@ -308,46 +310,107 @@ router.get('/edit', passport.authenticate('jwt', { session: false }), async ctx 
 
 /**
  *  @POST 'user/edit'
- *  @编辑用户信息接口，接口是公开的
+ *  @编辑用户信息接口，接口是私密的
  */
-router.post('/edit', async ctx => {
+router.post('/edit', passport.authenticate('jwt', { session: false }), async ctx => {
     try {
-        //接收表单数据
-        const data = ctx.request.body;
-        // 验证数据
-        const { errors, isValid } = await Valid.RegisterValid(data);
-        if (!isValid) {
-            ctx.status = 201;
-            ctx.body = errors;
-            return;
-        }
-        const newUser = [
-            data.name,
-            data.phone,
-            data.sex,
-            md5(data.password),
-            data.position,
-            data.college,
-            data.class,
-            data.id
-        ];
-        //添加到数据库
-        try {
-            const savaUser = await ctx.db.query(
-                "update user set name=?,phone=?,sex=?,password=?,position=?,college=?,class=? where id = ?",
-                newUser
-            );
-            if (savaUser.affectedRows > 0) {
-                ctx.status = 200;
-                ctx.body = { msg: "修改信息成功" };
+        const user = await ctx.db.query(
+            "select * from user where id = ?",
+            [ctx.state.user.id]
+        );
+        if (user.length > 0) {
+            //接收表单数据
+            const data = ctx.request.body;
+            // 验证数据
+            const { errors, isValid } = await Valid.RegisterValid(data);
+            if (!isValid) {
+                ctx.status = 201;
+                ctx.body = errors;
+                return;
             }
-        } catch (e) {
-            ctx.status = 500;
-            ctx.body = { msg: "崩了" };
-            console.log(e);
+            const newUser = [
+                data.id,
+                data.name,
+                data.phone,
+                data.sex,
+                data.position,
+                data.college,
+                data.temp_class,
+                data.id
+            ];
+            //添加到数据库
+            try {
+                const savaUser = await ctx.db.query(
+                    "update user set id=?,name=?,phone=?,sex=?,position=?,college=?,class=? where id = ?",
+                    newUser
+                );
+                if (savaUser.affectedRows > 0) {
+                    ctx.status = 200;
+                    ctx.body = { msg: "修改信息成功" };
+                }
+            } catch (e) {
+                ctx.status = 500;
+                ctx.body = { msg: "崩了" };
+                console.log(e);
+            }
+        } else {
+            ctx.status = 400;
+            ctx.body = { msg: '你不是管理员用户。' };
         }
     } catch (e) {
         console.log(e);
+    }
+});
+
+
+
+/**
+ *  @POST 'user/pwd'
+ *  @修改密码，私密接口
+ */
+router.post('/pwd', passport.authenticate('jwt', { session: false }), async ctx => {
+    try {
+        const user = await ctx.db.query(
+            "select * from user where id = ?",
+            [ctx.state.user.id]
+        );
+        if (user.length > 0) {
+            //接收表单数据
+            const data = ctx.request.body;
+            // 验证密码
+            if (md5(data.old) == user.password) {
+                const items = [
+                    md5(data.new),
+                    ctx.state.user.id
+                ];
+                // 密码对，修改密码
+                try {
+                    const savaUser = await ctx.db.query(
+                        "update user password=? where id = ?",
+                        items
+                    );
+                    if (savaUser.affectedRows > 0) {
+                        ctx.status = 200;
+                        ctx.body = { msg: "修改密码成功" };
+                    }
+                } catch (e) {
+                    ctx.status = 500;
+                    ctx.body = { msg: "数据库错误" };
+                    console.log(e);
+                }
+            } else {
+                ctx.status = 201;
+                ctx.body = { msg: '旧密码验证失败！' };
+            }
+            
+        } else {
+            ctx.status = 400;
+            ctx.body = { msg: '未登录或用户不存在' };
+        }
+    } catch (e) {
+        console.log(e);
+        ctx.status = 500;
+        ctx.body = { msg: "崩了" };
     }
 });
 

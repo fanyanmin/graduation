@@ -14,10 +14,10 @@ module.exports = {
     // 登录验证
     loginValid:(data)=>{
         const errors = {};
-        data.phone = !isEmpty(data.phone)?data.phone:'';
+        data.id = !isEmpty(data.id)?data.id:'';
 
-        if(!Validator.isMobilePhone(data.phone)){
-            errors.msg = '请输入正确的手机号';
+        if(!Validator.isLength(data.id.toString(),{max:10})){
+            errors.msg = '学号最长为10位！';
         }
 
         return{
@@ -29,12 +29,12 @@ module.exports = {
     // 注册验证
     RegisterValid:(data)=>{
         const errors = {};
-
-        data.phone = !isEmpty(data.phone)?data.phone:'';
+        
+        data.id = !isEmpty(data.id)?data.id:'';
         data.name = !isEmpty(data.name)?data.name:'';
 
-        if(!Validator.isMobilePhone(data.phone)){
-            errors.msg = '手机号格式错误！';
+        if(!Validator.isLength(data.id.toString(),{max:10})){
+            errors.msg = '学号最长为10位！';
         }
 
         if(!Validator.isLength(data.name,{max:20})){
