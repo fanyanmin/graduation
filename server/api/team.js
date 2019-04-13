@@ -153,31 +153,32 @@ router.post('/set', passport.authenticate('jwt', { session: false }), async ctx 
             const data = ctx.request.body;
             // 验证用户是否存在
             const exsitUser = await ctx.db.query(
-                "select * from user WHERE phone=?",
-                [data.phone]
+                "select * from user WHERE id=?",
+                [data.id]
             );
             if (exsitUser.length > 0) {
                 ctx.status = 201;
-                ctx.body = { msg: '此账号已存在，更换一个试试吧' };
+                ctx.body = { msg: '该生已管理其他社团，更换一个试试吧' };
             } else {
                 // 添加社长
                 const newUser = [
                     data.name,
-                    data.phone,
+                    data.id,
                     md5('000000'),
                     "会长",
-                    data.join1
+                    data.join1,
+                    1
                 ];
                 //添加到数据库
                 try {
                     const savaUser = await ctx.db.query(
-                        "insert into user(name,phone,password,position,join1) values(?,?,?,?,?)",
+                        "insert into user(name,id,password,position,join1,role) values(?,?,?,?,?,?)",
                         newUser
                     );
                     //设置会长
                     const setTeam = await ctx.db.query(
-                        "update team set admin=? where id=?",
-                        [data.name,data.id]
+                        "update team set number=number+1,admin=? where id=?",
+                        [data.name,data.team_id]
                     );
 
                     if (savaUser.affectedRows > 0 && setTeam.affectedRows>0) {

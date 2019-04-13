@@ -117,6 +117,10 @@ router.post('/add', passport.authenticate('jwt', { session: false }), async ctx 
                     [data.join]
                 );
                 if (updateUser.affectedRows > 0) {
+                    await ctx.db.query(
+                        "update team set number=number+1 where title=?",
+                        [data.join]
+                    );
                     ctx.status = 200;
                     ctx.body = { msg: "添加成员成功" };
                 }
@@ -140,6 +144,10 @@ router.post('/add', passport.authenticate('jwt', { session: false }), async ctx 
                         newUser
                     );
                     if (savaUser.affectedRows > 0) {
+                        await ctx.db.query(
+                            "update team set number=number+1 where title=?",
+                            [data.join]
+                        );
                         ctx.status = 200;
                         ctx.body = { msg: "添加成员成功" };
                     }
@@ -335,7 +343,7 @@ router.post('/edit', passport.authenticate('jwt', { session: false }), async ctx
                 data.sex,
                 data.position,
                 data.college,
-                data.temp_class,
+                data.class,
                 data.id
             ];
             //添加到数据库
@@ -374,19 +382,20 @@ router.post('/pwd', passport.authenticate('jwt', { session: false }), async ctx 
             "select * from user where id = ?",
             [ctx.state.user.id]
         );
+        
         if (user.length > 0) {
             //接收表单数据
             const data = ctx.request.body;
             // 验证密码
-            if (md5(data.old) == user.password) {
+            if (md5(data.old) == user[0].password) {
                 const items = [
-                    md5(data.new),
+                    md5(data.password1),
                     ctx.state.user.id
                 ];
                 // 密码对，修改密码
                 try {
                     const savaUser = await ctx.db.query(
-                        "update user password=? where id = ?",
+                        "update user set password=? where id = ?",
                         items
                     );
                     if (savaUser.affectedRows > 0) {
