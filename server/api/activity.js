@@ -120,11 +120,12 @@ router.post('/add', passport.authenticate('jwt', { session: false }), async ctx 
                 data.place, //活动地点
                 data.team,     //活动所属社团
                 data.owner,      //社长
-                ctx.state.user.id
+                ctx.state.user.id,
+                data.file_dir
             ];
             // 存
             const saveActivity =  await ctx.db.query(
-                "insert into activity(title,date1,date2,description,place,team,owner,owner_id) values(?,?,?,?,?,?,?,?)",
+                "insert into activity(title,date1,date2,description,place,team,owner,owner_id,file) values(?,?,?,?,?,?,?,?,?)",
                 newActivity
             );
             if(saveActivity.affectedRows > 0){
@@ -205,6 +206,37 @@ router.get('/set', passport.authenticate('jwt', { session: false }), async ctx =
         ctx.status = 404;
         ctx.body = { msg: 'not found.' };
     }
+});
+
+
+
+/**
+ *  @GET 'activity/detail'
+ *  @活动详情接口，接口是公开的
+ *  param id id有两种取值，一种是页码，另一种是商品ID
+ */
+router.get('/detail', async ctx => {
+    const id = ctx.query.id;
+    // console.log(id);
+    // console.log(id.length);
+    // 当id长度超过9位时，判断为商品详情
+        try {
+            const activity = await ctx.db.query(
+                "select * from activity where id = ?",
+                [id]
+            );
+            if(activity){
+                ctx.status = 200;
+                ctx.body = activity;
+            }else{
+                ctx.status = 500;
+                ctx.body = { msg: "你要查看的活动不存在或已被删除" };
+            }
+        } catch (e) {
+            console.log(e);
+            ctx.status = 500;
+            ctx.body = { msg: "崩了" };
+        }
 });
 
 
