@@ -61,4 +61,33 @@ router.post('/add', passport.authenticate('jwt', { session: false }), async ctx 
     };
 });
 
+
+/**
+*  @POST '/comment/vote'
+*  @点赞评论接口，接口是私密的，登录用户可参与评论
+*/
+router.get('/vote', passport.authenticate('jwt', { session: false }), async ctx => {
+    try {
+        const id = ctx.query.id;
+        const user = await ctx.db.query(
+            "select * from user where id = ?",
+            [ctx.state.user.id]
+        );
+        if (user.length > 0) {
+            
+            const updateComment = await ctx.db.query(
+                "update comment set voted=voted+1 where id = ?",
+                id
+            );
+            if (updateComment.affectedRows > 0) {
+                ctx.status = 200;
+                ctx.body = { msg: "点赞成功"};
+            }
+        }
+    } catch (e) {
+        ctx.status = 500;
+        console.log(e);
+        ctx.body = { msg: '崩了！' };
+    };
+});
 module.exports = router.routes();

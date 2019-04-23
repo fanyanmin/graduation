@@ -9,7 +9,7 @@ module.exports = {
         user:"root",
         password:"root",
         port:3306,
-        database:"group",
+        database:"stu_group",
         timezone:"08:00"
     }
 };
